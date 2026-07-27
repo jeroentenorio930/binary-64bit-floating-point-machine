@@ -32,10 +32,10 @@ To achieve the maximum score based on the grading rubric, this project must:
 ## ✅ Core Specifications & Task Tracker
 
 ### 1. Decimal to Binary Double-Precision Conversion
-- [ ] Take a decimal number as input.
-- [ ] Output the IEEE 754 double-precision representation (including special cases like NaN, Infinity).
-- [ ] Display output in Binary with proper spacing.
-- [ ] Display output in Hexadecimal.
+- [/] Take a decimal number as input.
+- [/] Output the IEEE 754 double-precision representation (including special cases like NaN, Infinity).
+- [/] Display output in Binary with proper spacing.
+- [/] Display output in Hexadecimal.
 
 ### 2. Rounding Methods
 - [ ] Accept a number in either decimal or binary format as input.
@@ -56,9 +56,7 @@ To achieve the maximum score based on the grading rubric, this project must:
 
 ### 🌟 4. Additional Features (For the 90-Point Tier)
 *(Brainstorm and check off 1-2 extra features here to secure the perfect score)*
-- [ ] E.g., Export step-by-step solution to PDF/TXT.
-- [ ] E.g., Operation history log.
-- [ ] E.g., Dark/Light mode toggle.
+- [ ] **Reverse Conversion:** Added functionality to convert an IEEE 754 double-precision input (Binary or Hexadecimal) back into a Decimal format.
 
 ---
 
@@ -86,10 +84,24 @@ Before final submission, ensure all of the following are complete and stored in 
 ---
 
 ## 🛠️ Local Development Setup
-*(Instructions for the instructor or other developers on how to run your project locally)*
+This project was built using **React** and **TypeScript**, scaffolded with **Vite**. To run the application locally on your machine, follow these steps:
 
-1. Clone the repository: `git clone [repository link]`
-2. Navigate to the project directory: `cd [project folder]`
-3. Install dependencies: `npm install` *(change if using python/pip, etc.)*
-4. Run the development server: `npm run dev`
-5. Open `http://localhost:3000` in your browser.
+1. Clone the repository: 
+  ```bash
+  git clone [repository link]
+  ```
+
+2. Navigate to the project directory:
+  ```
+  cd [project folder name]
+  ```
+
+3. Install the required Node.js dependencies:
+  ```
+  npm install 
+  ```
+
+4. Start the local Vite development server:
+  ```
+  npm run dev
+  ```
