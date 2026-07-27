@@ -56,7 +56,7 @@ To achieve the maximum score based on the grading rubric, this project must:
 
 ### 🌟 4. Additional Features (For the 90-Point Tier)
 *(Brainstorm and check off 1-2 extra features here to secure the perfect score)*
-- [ ] **Reverse Conversion:** Added functionality to convert an IEEE 754 double-precision input (Binary or Hexadecimal) back into a Decimal format.
+- [/] **Reverse Conversion:** Added functionality to convert an IEEE 754 double-precision input (Binary or Hexadecimal) back into a Decimal format.
 
 ---
 
