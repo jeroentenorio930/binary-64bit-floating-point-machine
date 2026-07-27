@@ -1,5 +1,5 @@
 // MACHINE 3: BINARY 64-BIT FLOATING-POINT (IEEE 754 DOUBLE-PRECISION) LOGIC
-// src/utils/logic.ts
+// src/utils/conversion_logic.ts
 
 // ===== CONSTANTS =====
 const TOTAL_BITS = 64;
@@ -138,9 +138,7 @@ export function convertDecimalToIEEE754Double(inputNumber: number | string): IEE
     const expVal = parseInt(exponent, 2);
     const classification = classifyIEEE754Value(expVal, fraction, sign);
 
-    // ----------------------------------------------------
-    // Generate Mathematical Step-by-Step Breakdown
-    // ----------------------------------------------------
+    // ----- Generate Mathematical Step-by-Step Breakdown -----
     steps.push(`Step 1: Input Analysis. Evaluating decimal value: ${num}`);
     
     if (classification === 'NaN') {
@@ -273,9 +271,7 @@ export function convertIEEE754ToDecimal(input: string): IEEE754DecodingResult {
     steps.push(`   -> Exponent (11 bits): ${exponent} (Decimal: ${expVal})`);
     steps.push(`   -> Fraction (52 bits): ${fraction}`);
 
-    // ----------------------------------------------------
-    // Generate Numerical Step-by-Step Breakdown
-    // ----------------------------------------------------
+    // ----- Generate Mathematical Step-by-Step Breakdown -----
     steps.push(`Step 3: Classification and Numerical Reconstruction (${classification}):`);
     
     if (classification === 'NaN') {

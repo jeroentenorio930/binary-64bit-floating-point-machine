@@ -38,12 +38,12 @@ To achieve the maximum score based on the grading rubric, this project must:
 - [/] Display output in Hexadecimal.
 
 ### 2. Rounding Methods
-- [ ] Accept a number in either decimal or binary format as input.
-- [ ] Accept a target number of digits (or bits) for rounding.
-- [ ] Output rounded result using **Chopping**.
-- [ ] Output rounded result using **Round-up**.
-- [ ] Output rounded result using **Round-down**.
-- [ ] Output rounded result using **Round-to-nearest ties-to-even**.
+- [/] Accept a number in either decimal or binary format as input.
+- [/] Accept a target number of digits (or bits) for rounding.
+- [/] Output rounded result using **Chopping**.
+- [/] Output rounded result using **Round-up**.
+- [/] Output rounded result using **Round-down**.
+- [/] Output rounded result using **Round-to-nearest ties-to-even**.
 
 ### 3. Arithmetic Operations (Addition & Multiplication)
 - [ ] Accept operands in either decimal or IEEE hexadecimal format.
