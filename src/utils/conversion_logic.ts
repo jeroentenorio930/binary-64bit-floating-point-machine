@@ -168,7 +168,7 @@ export function convertDecimalToIEEE754Double(inputNumber: number | string): IEE
         if (classification === 'Subnormal') {
             steps.push(`Step 3: Subnormal Evaluation. Value is too small for normal representation.`);
             steps.push(`   -> Exponent is fixed to 0 (all 0s). Actual mathematical exponent evaluates to -1022.`);
-            steps.push(`   -> Mantissa is evaluated as $0.f$ (No hidden leading 1 exists).`);
+            steps.push(`   -> Mantissa is evaluated as 0.fraction (No hidden leading 1 exists).`);
         } else {
             // Normal Mathematical Conversion Tracing
             steps.push(`Step 3: Manual Binary Conversion & Normalization`);
@@ -177,7 +177,7 @@ export function convertDecimalToIEEE754Double(inputNumber: number | string): IEE
             let fracPart = absNum - intPart;
             
             const intPartBin = intPart.toString(2);
-            steps.push(`   -> Integer part: ${intPart} $\\rightarrow$ ${intPartBin}`);
+            steps.push(`   -> Integer part: ${intPart} → ${intPartBin}`);
             
             steps.push(`   -> Fractional part multiplication trace:`);
             let currentFrac = fracPart;
@@ -190,7 +190,7 @@ export function convertDecimalToIEEE754Double(inputNumber: number | string): IEE
                 const bit = Math.floor(next);
                 fracBits += bit;
                 if (iteration < MAX_TRACE) {
-                    steps.push(`      ${currentFrac} $\\times$ 2 = ${next} $\\rightarrow$ ${bit}`);
+                    steps.push(`      ${currentFrac} × 2 = ${next} → ${bit}`);
                 } else if (iteration === MAX_TRACE) {
                     steps.push(`      ... (repeated multiplication continues)`);
                 }
@@ -212,15 +212,15 @@ export function convertDecimalToIEEE754Double(inputNumber: number | string): IEE
             const mantissaGenerated = "1." + unnormalizedNoDot.slice(firstOneIdx + 1);
             
             const shiftDirection = calculatedExponent < 0 ? 'right' : 'left';
-            steps.push(`   -> Shift the radix point by ${Math.abs(calculatedExponent)} positions ${shiftDirection}: $${mantissaGenerated.slice(0, 12)}${mantissaGenerated.length > 12 ? '...' : ''} \\times 2^{${calculatedExponent}}$`);
-            steps.push(`   -> Calculated Base-2 Exponent ($E$) = ${calculatedExponent}`);
+            steps.push(`   -> Shift the radix point by ${Math.abs(calculatedExponent)} positions ${shiftDirection}: ${mantissaGenerated.slice(0, 12)}${mantissaGenerated.length > 12 ? '...' : ''} × 2^(${calculatedExponent})`);
+            steps.push(`   -> Calculated Base-2 Exponent (E) = ${calculatedExponent}`);
             
             if (calculatedExponent === actualExponent) {
                 steps.push(`   -> Verification: IEEE754 encoded exponent matches calculated: ${actualExponent}`);
             }
             
             steps.push(`Step 4: Biased Exponent Calculation.`);
-            steps.push(`   -> Biased Exponent = $E$ + Bias = ${actualExponent} + ${EXPONENT_BIAS} = ${expVal}`);
+            steps.push(`   -> Biased Exponent = E + Bias = ${actualExponent} + ${EXPONENT_BIAS} = ${expVal}`);
             steps.push(`   -> Converted to 11-bit binary: ${exponent}`);
             
             if (iteration >= 52 || mantissaGenerated.length > 54) {
@@ -299,7 +299,7 @@ export function convertIEEE754ToDecimal(input: string): IEEE754DecodingResult {
                 const weight = Math.pow(2, -(i + 1));
                 mantissaValue += weight;
                 if (termsShown < 3) {
-                    mathString += ` + $2^{-${i + 1}}$`;
+                    mathString += ` + 2^(-${i + 1})`;
                     termsShown++;
                 }
             }
@@ -312,9 +312,9 @@ export function convertIEEE754ToDecimal(input: string): IEEE754DecodingResult {
         const signMultiplier = sign === '1' ? -1 : 1;
         
         steps.push(`   -> Reconstructing Mantissa: ${mathString}`);
-        steps.push(`   -> Mantissa Evaluates to: $\\approx ${mantissaValue}$`);
+        steps.push(`   -> Mantissa Evaluates to: ≈ ${mantissaValue}`);
         steps.push(`   -> Sign multiplier: (-1)^${sign} = ${signMultiplier}`);
-        steps.push(`   -> Formula: ${signMultiplier} \\times ${mantissaValue} \\times 2^{${actualExponent}}`);
+        steps.push(`   -> Formula: ${signMultiplier} × ${mantissaValue} × 2^(${actualExponent})`);
         
         const mathApprox = signMultiplier * mantissaValue * Math.pow(2, actualExponent);
         steps.push(`   -> Calculated mathematical approximation: ${mathApprox}`);
