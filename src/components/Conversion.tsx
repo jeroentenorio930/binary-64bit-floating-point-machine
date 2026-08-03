@@ -6,6 +6,9 @@ import {
   type IEEE754DecodingResult,
 } from '../utils/conversion_logic'
 import { StepsLog } from './StepsLog'
+import { ExceptionFlagsDisplay, type ExceptionFlags } from './ExceptionFlags'
+const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
+const MAX_DOUBLE = Number.MAX_VALUE
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,11 +50,55 @@ function EncodePanel() {
   const [result, setResult] = useState<IEEE754EncodingResult | null>(null)
   const [error, setError] = useState('')
 
+  const [flags, setFlags] = useState<ExceptionFlags>({
+    inv: false,
+    of: false,
+    uf: false,
+    inx: false,
+  })
+
   function handleConvert() {
-    if (!input.trim()) { setError('Please enter a value.'); return }
+    if (!input.trim()) 
+    { 
+      setError('Please enter a value.');
+      setFlags({ inv: false, of: false, uf: false, inx: false })
+      return 
+    }
+
     const res = convertDecimalToIEEE754Double(input)
-    if (res.error) { setError(res.error); setResult(null) }
-    else           { setResult(res); setError('') }
+    
+    if (res.error) 
+    { 
+      setError(res.error)
+      setResult(null)
+      setFlags({ inv: true, of: false, uf: false, inx: false })
+    } 
+    else 
+    { 
+      setResult(res)
+      setError('')
+      setResult(res)
+      setError('')
+
+      const lowerInput = input.toLowerCase().trim()
+      const num = Number(input)
+      const absNum = Math.abs(num)
+
+      const isNaNVal = Number.isNaN(num) || lowerInput.includes('nan')
+
+      const isOverflowVal = !isNaNVal && (absNum > MAX_DOUBLE || !Number.isFinite(num) || lowerInput.includes('infinity'))
+
+      const isUnderflowVal = !isNaNVal && absNum > 0 && absNum < SMALLEST_NORMAL_DOUBLE
+
+      const isInexactVal = !isNaNVal && !isOverflowVal && !Number.isInteger(num)
+
+      setFlags({
+        inv: isNaNVal,
+        of: isOverflowVal,     
+        uf: isUnderflowVal,    
+        inx: isInexactVal,    
+      })
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -81,6 +128,8 @@ function EncodePanel() {
           Convert ▸
         </button>
       </div>
+
+      <ExceptionFlagsDisplay flags={flags} />
 
       {error && <p style={{ color: 'var(--red)', fontSize: '0.9rem' }}>⚠ {error}</p>}
 
@@ -113,11 +162,48 @@ function DecodePanel() {
   const [result, setResult] = useState<IEEE754DecodingResult | null>(null)
   const [error, setError] = useState('')
 
+  const [flags, setFlags] = useState<ExceptionFlags>({
+    inv: false,
+    of: false,
+    uf: false,
+    inx: false,
+  })
+
   function handleConvert() {
-    if (!input.trim()) { setError('Please enter a value.'); return }
+    if (!input.trim()) 
+    { 
+      setError('Please enter a value.');
+      setFlags({ inv: false, of: false, uf: false, inx: false })
+      return 
+    }
+
     const res = convertIEEE754ToDecimal(input)
-    if (res.error) { setError(res.error); setResult(null) }
-    else           { setResult(res); setError('') }
+
+    if (res.error) 
+    { 
+      setError(res.error)
+      setResult(null)
+      setFlags({ inv: true, of: false, uf: false, inx: false })
+    } 
+    else 
+    { 
+      const decVal = res.decimal.toLowerCase()
+      const num = Number(res.decimal)
+      const absNum = Math.abs(num)
+
+      const isNaNVal = decVal.includes('nan') || Number.isNaN(num)
+    
+      const isOverflowVal = !isNaNVal && (absNum > MAX_DOUBLE || !Number.isFinite(num) || decVal.includes('infinity'))
+      
+      const isUnderflowVal = !isNaNVal && absNum > 0 && absNum < SMALLEST_NORMAL_DOUBLE
+
+      setFlags({
+        inv: isNaNVal,
+        of: isOverflowVal,
+        uf: isUnderflowVal,
+        inx: false,
+      })
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -147,6 +233,8 @@ function DecodePanel() {
           Decode ▸
         </button>
       </div>
+
+      <ExceptionFlagsDisplay flags={flags} />
 
       {error && <p style={{ color: 'var(--red)', fontSize: '0.9rem' }}>⚠ {error}</p>}
 
