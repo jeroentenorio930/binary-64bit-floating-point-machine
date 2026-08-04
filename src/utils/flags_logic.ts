@@ -12,6 +12,18 @@ export const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022) // ~2.2250738585072014e
 export const MAX_DOUBLE = Number.MAX_VALUE                // ~1.7976931348623157e+308
 
 /**
+ * Case-insensitive decimal string parser.
+ * JavaScript's native Number("infinity") returns NaN, so we handle infinity case-insensitively.
+ */
+export function parseDecimalString(str: string): number {
+  const lower = str.trim().toLowerCase()
+  if (lower === 'nan') return NaN
+  if (lower === 'infinity' || lower === '+infinity') return Infinity
+  if (lower === '-infinity') return -Infinity
+  return Number(str)
+}
+
+/**
  * Returns true if the decimal input string can be represented exactly in IEEE 754 double precision.
  * A decimal fraction p / 10^n is exactly representable in binary iff 5^n divides p.
  */
@@ -20,7 +32,7 @@ export function isExactlyRepresentable(inputStr: string): boolean {
   if (clean === 'nan') return true
   if (clean === 'infinity' || clean === '+infinity' || clean === '-infinity') return true
 
-  const asNum = Number(inputStr)
+  const asNum = parseDecimalString(inputStr)
   if (!Number.isFinite(asNum)) return false // overflow case like 2e308 is not exactly representable
 
   const noSign = clean.replace(/^[+-]/, '')
@@ -58,7 +70,7 @@ export function computeConversionFlags(
   if (isDecode) {
     // Decoding 64-bit IEEE 754 bits back to Decimal (exact bit inspection)
     const decVal = (resultDecimal || '').toLowerCase()
-    const num = Number(resultDecimal)
+    const num = parseDecimalString(resultDecimal || '')
     const absNum = Math.abs(num)
 
     const isNaNVal = decVal.includes('nan') || Number.isNaN(num)
@@ -74,7 +86,7 @@ export function computeConversionFlags(
   }
 
   // Encoding Decimal → IEEE 754 Binary
-  const num = Number(input)
+  const num = parseDecimalString(input)
   const absNum = Math.abs(num)
 
   const isNaNVal = Number.isNaN(num) || cleanInput.includes('nan')
@@ -108,7 +120,7 @@ export function parseToNumber(str: string, base: 2 | 10): number {
   const unsigned = isNeg || clean.startsWith('+') ? clean.slice(1) : clean
 
   if (base === 10) {
-    return Number(str)
+    return parseDecimalString(str)
   } else {
     const parts = unsigned.split('.')
     const intPart = parseInt(parts[0] || '0', 2)
