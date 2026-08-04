@@ -11,19 +11,29 @@ const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
 const MAX_DOUBLE = Number.MAX_VALUE
 
 /**
- * Returns true if `num` can be represented exactly in IEEE 754 double precision.
- * A number is exactly representable iff its binary fraction terminates within 52 bits,
- * i.e. multiplying by 2 up to 52 times eventually yields an integer.
+ * Returns true if the decimal input string can be represented exactly in IEEE 754
+ * double precision.
+ *
+ * A decimal fraction p/10^n is exactly representable in binary iff
+ * 5^n divides p (since 10^n = 2^n × 5^n; the 5s must cancel).
+ * This uses BigInt arithmetic so there is no floating-point rounding involved.
  */
-function isExactlyRepresentable(num: number): boolean {
-  if (!Number.isFinite(num) || Number.isNaN(num)) return true
-  if (Number.isInteger(num)) return Math.abs(num) <= Number.MAX_SAFE_INTEGER
-  let n = Math.abs(num)
-  for (let i = 0; i <= 53; i++) {
-    if (Number.isInteger(n)) return true
-    n *= 2
+function isExactlyRepresentable(inputStr: string): boolean {
+  const clean = inputStr.trim().toLowerCase()
+  if (clean === 'nan' || clean.includes('infinity')) return true
+  const noSign = clean.replace(/^[+-]/, '')
+  const parts = noSign.split('.')
+  const intStr = parts[0] || '0'
+  const fracStr = parts[1] || ''
+  const n = fracStr.length
+  if (n === 0) return true  // integer — always exact (within safe range)
+  try {
+    const p = BigInt(intStr + fracStr)  // integer numerator
+    const fivePow = 5n ** BigInt(n)    // 5^n
+    return p % fivePow === 0n
+  } catch {
+    return false
   }
-  return false
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,7 +116,7 @@ function EncodePanel() {
 
       // Inexact: set only when the decimal input cannot be represented exactly
       // in 52 mantissa bits (binary fraction doesn't terminate within 52 bits).
-      const isInexactVal = !isNaNVal && !isOverflowVal && !isExactlyRepresentable(num)
+      const isInexactVal = !isNaNVal && !isOverflowVal && !isExactlyRepresentable(input)
 
       setFlags({
         inv: isNaNVal,
