@@ -295,12 +295,16 @@ export function addIEEE754(a: number, b: number): ArithmeticResult {
     steps.push(`   Rounding caused carry — exponent incremented to ${resultExp}.`)
   }
 
-  steps.push(`Step 7: Assemble final IEEE 754 result.`)
-  steps.push(`   Sign: ${resultSign}, Biased Exponent: ${resultExp}, Fraction: 0x${finalFrac.toString(16)}`)
+  let finalExp = resultExp
+  if (finalExp >= MAX_EXP_STORED) {
+    finalExp = MAX_EXP_STORED
+    finalFrac = 0n
+    steps.push(`   Overflow detected: result exponent >= ${MAX_EXP_STORED}. Rounding to Infinity.`)
+  }
 
   const resultBits =
     (BigInt(resultSign) << 63n) |
-    (BigInt(Math.max(0, Math.min(MAX_EXP_STORED, resultExp))) << 52n) |
+    (BigInt(finalExp) << 52n) |
     finalFrac
 
   const resultBin = bitsToStr(resultBits)
@@ -406,12 +410,16 @@ export function multiplyIEEE754(a: number, b: number): ArithmeticResult {
     steps.push(`   Rounding caused carry — exponent incremented to ${resultExp}.`)
   }
 
-  steps.push(`Step 7: Assemble final IEEE 754 result.`)
-  steps.push(`   Sign: ${resultSign}, Biased Exponent: ${resultExp}, Fraction: 0x${finalFrac.toString(16)}`)
+  let finalExp = resultExp
+  if (finalExp >= MAX_EXP_STORED) {
+    finalExp = MAX_EXP_STORED
+    finalFrac = 0n
+    steps.push(`   Overflow detected: result exponent >= ${MAX_EXP_STORED}. Rounding to Infinity.`)
+  }
 
   const resultBits =
     (BigInt(resultSign) << 63n) |
-    (BigInt(Math.max(0, Math.min(MAX_EXP_STORED, resultExp))) << 52n) |
+    (BigInt(finalExp) << 52n) |
     finalFrac
 
   const resultBin = bitsToStr(resultBits)

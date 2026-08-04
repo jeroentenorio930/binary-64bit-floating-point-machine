@@ -25,16 +25,20 @@ function computeArithmeticFlags(
   const operandsFinite = Number.isFinite(valA) && Number.isFinite(valB)
   const isOverflowVal = !isNaNVal && operandsFinite && (absRes > MAX_DOUBLE || !Number.isFinite(resNum) || resDecLower.includes('infinity'))
 
-  const operandsNonZero = valA !== 0 && valB !== 0 && operandsFinite
-  const isUnderflowVal = !isNaNVal && operandsNonZero && (absRes === 0 || (absRes > 0 && absRes < SMALLEST_NORMAL_DOUBLE))
+  const isInexactVal = res.grsInfo.guard === 1 || res.grsInfo.round === 1 || res.grsInfo.sticky === 1 || isOverflowVal
 
-  const isInexactVal = res.grsInfo.guard === 1 || res.grsInfo.round === 1 || res.grsInfo.sticky === 1 || isOverflowVal || isUnderflowVal
+  const operandsNonZero = valA !== 0 && valB !== 0 && operandsFinite
+  // Underflow: tiny AND inexact (e.g. non-zero inputs result in a subnormal/zero that is inexact)
+  const isUnderflowVal = !isNaNVal && operandsNonZero && isInexactVal && (absRes === 0 || (absRes > 0 && absRes < SMALLEST_NORMAL_DOUBLE))
+
+  // Inexact is also set if underflow occurs
+  const finalInexact = isInexactVal || isUnderflowVal
 
   return {
     inv: isNaNVal,
     of: isOverflowVal,
     uf: isUnderflowVal,
-    inx: isInexactVal,
+    inx: finalInexact,
   }
 }
 

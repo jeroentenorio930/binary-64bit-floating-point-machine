@@ -68,6 +68,27 @@ export function Rounding() {
     setResult(res)
     setError('')
 
+    // Helper to parse binary or decimal float to number
+    const parseToNumber = (str: string, b: 2 | 10): number => {
+      const clean = str.trim();
+      const isNeg = clean.startsWith('-');
+      const unsigned = isNeg || clean.startsWith('+') ? clean.slice(1) : clean;
+      if (b === 10) {
+        return Number(str);
+      } else {
+        const parts = unsigned.split('.');
+        const intPart = parseInt(parts[0] || '0', 2);
+        const fracPart = parts[1] || '';
+        let fracVal = 0;
+        for (let i = 0; i < fracPart.length; i++) {
+          if (fracPart[i] === '1') {
+            fracVal += Math.pow(2, -(i + 1));
+          }
+        }
+        return (isNeg ? -1 : 1) * (intPart + fracVal);
+      }
+    };
+
     // Compute CPU Exception Flags during rounding
     const cleanInput = input.trim().replace(/^[+-]/, '')
     const parts = cleanInput.split('.')
@@ -75,13 +96,16 @@ export function Rounding() {
     const droppedFrac = fracPart.slice(digits)
     const hasRemainder = /[^0]/.test(droppedFrac)
 
-    const numVal = base === 10 ? Number(input) : NaN
+    const numVal = parseToNumber(input, base)
+    const roundedVal = parseToNumber(res.roundNearestEven, base)
     const absVal = Math.abs(numVal)
+    const absRounded = Math.abs(roundedVal)
 
-    const isInv = Number.isNaN(numVal) && base === 10 && input.toLowerCase() !== 'nan'
+    const isInv = Number.isNaN(numVal) && input.toLowerCase() !== 'nan'
     const isOf = !Number.isNaN(numVal) && absVal > MAX_DOUBLE
-    const isUf = !Number.isNaN(numVal) && absVal > 0 && (absVal < SMALLEST_NORMAL_DOUBLE || Number(res.roundNearestEven) === 0)
     const isInx = hasRemainder
+    // Underflow: tiny AND inexact (e.g. non-zero input rounds to subnormal/zero and is inexact)
+    const isUf = !Number.isNaN(numVal) && absVal > 0 && isInx && (absRounded === 0 || absRounded < SMALLEST_NORMAL_DOUBLE)
 
     setFlags({
       inv: isInv,

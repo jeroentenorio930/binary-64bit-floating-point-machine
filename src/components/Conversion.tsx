@@ -10,6 +10,22 @@ import { ExceptionFlagsDisplay, type ExceptionFlags } from './ExceptionFlags'
 const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
 const MAX_DOUBLE = Number.MAX_VALUE
 
+/**
+ * Returns true if `num` can be represented exactly in IEEE 754 double precision.
+ * A number is exactly representable iff its binary fraction terminates within 52 bits,
+ * i.e. multiplying by 2 up to 52 times eventually yields an integer.
+ */
+function isExactlyRepresentable(num: number): boolean {
+  if (!Number.isFinite(num) || Number.isNaN(num)) return true
+  if (Number.isInteger(num)) return Math.abs(num) <= Number.MAX_SAFE_INTEGER
+  let n = Math.abs(num)
+  for (let i = 0; i <= 53; i++) {
+    if (Number.isInteger(n)) return true
+    n *= 2
+  }
+  return false
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function parseBinaryDisplay(binaryStr: string) {
@@ -77,8 +93,6 @@ function EncodePanel() {
     { 
       setResult(res)
       setError('')
-      setResult(res)
-      setError('')
 
       const lowerInput = input.toLowerCase().trim()
       const num = Number(input)
@@ -90,13 +104,15 @@ function EncodePanel() {
 
       const isUnderflowVal = !isNaNVal && absNum > 0 && absNum < SMALLEST_NORMAL_DOUBLE
 
-      const isInexactVal = !isNaNVal && !isOverflowVal && !Number.isInteger(num)
+      // Inexact: set only when the decimal input cannot be represented exactly
+      // in 52 mantissa bits (binary fraction doesn't terminate within 52 bits).
+      const isInexactVal = !isNaNVal && !isOverflowVal && !isExactlyRepresentable(num)
 
       setFlags({
         inv: isNaNVal,
-        of: isOverflowVal,     
-        uf: isUnderflowVal,    
-        inx: isInexactVal,    
+        of: isOverflowVal,
+        uf: isUnderflowVal,
+        inx: isInexactVal,
       })
     }
   }
