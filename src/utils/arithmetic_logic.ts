@@ -207,11 +207,16 @@ export function addIEEE754(a: number, b: number): ArithmeticResult {
 
   if (expDiff > 0) {
     steps.push(`   B is smaller — shift B mantissa right by ${expDiff} bits.`)
+    // Capture any bits shifted out as the sticky bit (IEEE 754 requirement)
+    const bLost = bMantissa & ((1n << BigInt(expDiff)) - 1n)
     bMantissa >>= BigInt(expDiff)
+    if (bLost !== 0n) bMantissa |= 1n  // set sticky
     resultExp = aExpEffective
   } else if (expDiff < 0) {
     steps.push(`   A is smaller — shift A mantissa right by ${-expDiff} bits.`)
+    const aLost = aMantissa & ((1n << BigInt(-expDiff)) - 1n)
     aMantissa >>= BigInt(-expDiff)
+    if (aLost !== 0n) aMantissa |= 1n  // set sticky
     resultExp = bExpEffective
   } else {
     steps.push(`   Exponents are equal. No alignment needed.`)
@@ -281,6 +286,56 @@ export function addIEEE754(a: number, b: number): ArithmeticResult {
     steps.push(`   Normalized mantissa length: ${resultMantissa.toString(2).length} bits. Biased exp: ${resultExp}`)
   }
 
+  // ── Subnormal result path ─────────────────────────────────────────────────
+  // If the normalization loop exited with a mantissa shorter than targetLen,
+  // the result is subnormal: stored biased exponent = 0, no hidden bit.
+  // applyGRS would receive totalBits < 53 which causes negative dropBits (catastrophic).
+  const targetLen = 55 + 1
+  if (resultMantissa.toString(2).length < targetLen) {
+    steps.push(`Step 6: Subnormal result — exponent cannot exceed 0.`)
+    // GRS are the bottom EXTRA bits of the EXTRA-scaled mantissa
+    const G = Number((resultMantissa >> BigInt(EXTRA - 1)) & 1n)
+    const R = Number((resultMantissa >> BigInt(EXTRA - 2)) & 1n)
+    const stickyMask = (1n << BigInt(EXTRA - 2)) - 1n
+    const S = (resultMantissa & stickyMask) !== 0n ? 1 : 0
+    steps.push(`   GRS: G=${G}, R=${R}, S=${S}`)
+    const subnormalGrs: GRSInfo = { guard: G, round: R, sticky: S, action: `G=${G} R=${R} S=${S} (subnormal result)` }
+    let fracBits = resultMantissa >> BigInt(EXTRA)
+    // Round-to-nearest ties-to-even
+    if (G === 1 && (R === 1 || S === 1 || (fracBits & 1n) === 1n)) {
+      fracBits += 1n
+      steps.push(`   Rounding up subnormal fraction.`)
+      if (fracBits >= (1n << 52n)) {
+        // Carry into normal range — result is the smallest normal number
+        const resultBitsCarry = (BigInt(resultSign) << 63n) | (1n << 52n)
+        const resultBinCarry = bitsToStr(resultBitsCarry)
+        const resultNumCarry = bitsToNum(resultBitsCarry)
+        steps.push(`   Carry: result becomes smallest normal.`)
+        steps.push(`Final Assembly: ${formatBinary(resultBinCarry)}`)
+        steps.push(`Decimal Result: ${resultNumCarry}`)
+        return {
+          operand1Decimal: String(a), operand2Decimal: String(b),
+          operand1Binary: formatBinary(aBin), operand2Binary: formatBinary(bBin),
+          resultBinary: formatBinary(resultBinCarry), resultHex: formatHex(resultBitsCarry),
+          resultDecimal: String(resultNumCarry), steps, grsInfo: subnormalGrs
+        }
+      }
+    }
+    const finalFracSub = fracBits & 0x000FFFFFFFFFFFFFn
+    const resultBitsSub = (BigInt(resultSign) << 63n) | finalFracSub
+    const resultBinSub = bitsToStr(resultBitsSub)
+    const resultNumSub = bitsToNum(resultBitsSub)
+    steps.push(`Final Assembly: ${formatBinary(resultBinSub)}`)
+    steps.push(`Decimal Result: ${resultNumSub}`)
+    return {
+      operand1Decimal: String(a), operand2Decimal: String(b),
+      operand1Binary: formatBinary(aBin), operand2Binary: formatBinary(bBin),
+      resultBinary: formatBinary(resultBinSub), resultHex: formatHex(resultBitsSub),
+      resultDecimal: Object.is(resultNumSub, -0) ? '-0' : String(resultNumSub), steps, grsInfo: subnormalGrs
+    }
+  }
+
+  // ── Normal result path ────────────────────────────────────────────────────
   // Now extract GRS bits and truncate to 53 bits (1 hidden + 52 fraction)
   steps.push(`Step 6: Apply GRS rounding.`)
   const totalBits = resultMantissa.toString(2).length
@@ -317,7 +372,7 @@ export function addIEEE754(a: number, b: number): ArithmeticResult {
     operand1Decimal: String(a), operand2Decimal: String(b),
     operand1Binary: formatBinary(aBin), operand2Binary: formatBinary(bBin),
     resultBinary: formatBinary(resultBin), resultHex: formatHex(resultBits),
-    resultDecimal: String(resultNum), steps, grsInfo: grs
+    resultDecimal: Object.is(resultNum, -0) ? '-0' : String(resultNum), steps, grsInfo: grs
   }
 }
 
@@ -351,20 +406,23 @@ export function multiplyIEEE754(a: number, b: number): ArithmeticResult {
     const result = a * b
     const resultBits2 = numToBits(result)
     const resultBin2 = bitsToStr(resultBits2)
-    steps.push(`Step 3: Special-case detected. Result = ${result}`)
+    steps.push(`Step 3: Special-case detected. Result = ${Object.is(result, -0) ? '-0' : result}`)
     steps.push(`   -> Final Assembly: ${formatBinary(resultBin2)}`)
     return {
       operand1Decimal: String(a), operand2Decimal: String(b),
       operand1Binary: formatBinary(aBin), operand2Binary: formatBinary(bBin),
       resultBinary: formatBinary(resultBin2), resultHex: formatHex(resultBits2),
-      resultDecimal: String(result), steps,
+      resultDecimal: Object.is(result, -0) ? '-0' : String(result), steps,
       grsInfo: { guard: 0, round: 0, sticky: 0, action: 'Special case (no GRS needed)' }
     }
   }
 
-  // Exponent: add biased exponents, subtract one bias
-  let resultExp = aExp + bExp - EXPONENT_BIAS
-  steps.push(`Step 3: Result biased exponent = ${aExp} + ${bExp} - ${EXPONENT_BIAS} = ${resultExp}`)
+  // For subnormals, the effective exponent is 1 (not the stored 0).
+  // Use effective exponents so the resultExp correctly reflects the product's magnitude.
+  const aExpEff = aExp === 0 ? 1 : aExp
+  const bExpEff = bExp === 0 ? 1 : bExp
+  let resultExp = aExpEff + bExpEff - EXPONENT_BIAS
+  steps.push(`Step 3: Result biased exponent = ${aExpEff} + ${bExpEff} - ${EXPONENT_BIAS} = ${resultExp} (using effective exponents for subnormals)`)
 
   // Significand multiplication (53-bit × 53-bit = up to 106-bit product)
   const aHidden = aExp === 0 ? 0n : 1n
@@ -398,45 +456,52 @@ export function multiplyIEEE754(a: number, b: number): ArithmeticResult {
     steps.push(`   Product is exactly 105 bits. No normalization shift needed.`)
   }
 
-  // Now product is 105 bits: 1 hidden + 52 fraction + 52 extra (G,R,S,...)
-  steps.push(`Step 6: Apply GRS rounding to 105-bit product.`)
-  const { rounded, grs } = applyGRS(product, 105, steps)
+  // ── Single Rounding (avoiding double-rounding for subnormals) ────────────────
+  // For normal results, we want to drop 52 bits from the 105-bit product (105 - 53 = 52).
+  // For subnormal results, the biased exponent would drop to <= 0.
+  // Converting to subnormal (biased exp = 0) requires a right-shift of `denormShift = 1 - resultExp`.
+  // To avoid double-rounding, we don't denormalize a rounded number.
+  // Instead, we drop an extra `denormShift` bits during the single `applyGRS` step!
+  let isSubnormal = false
+  let totalBitsToApply = 105
+  let denormShift = 0
 
-  let finalFrac = rounded & 0x000FFFFFFFFFFFFFn
-  const overflowCheck = rounded >> 53n
-  if (overflowCheck > 0n) {
-    finalFrac = rounded >> 1n & 0x000FFFFFFFFFFFFFn
-    resultExp += 1
-    steps.push(`   Rounding caused carry — exponent incremented to ${resultExp}.`)
+  if (resultExp <= 0) {
+    isSubnormal = true
+    denormShift = 1 - resultExp
+    totalBitsToApply = 105 + denormShift
+    steps.push(`   Subnormal result: exponent ${resultExp} <= 0. Denormalising requires shift of ${denormShift}.`)
+    steps.push(`   Using single-step rounding by treating product as ${totalBitsToApply}-bit to drop extra bits.`)
   }
 
-  let finalExp = resultExp
+  steps.push(`Step 6: Apply GRS rounding.`)
+  const { rounded, grs } = applyGRS(product, totalBitsToApply, steps)
+
+  let finalFrac = rounded & 0x000FFFFFFFFFFFFFn
+  let finalExp = isSubnormal ? 0 : resultExp
+
+  // If rounding caused an overflow carry...
+  if (isSubnormal) {
+    // For subnormals, a carry into bit 52 means it became the smallest normal number!
+    if (rounded >= (1n << 52n)) {
+      finalFrac = 0n
+      finalExp = 1
+      steps.push(`   Rounding caused carry — subnormal became smallest normal (biased exp = 1).`)
+    }
+  } else {
+    // For normal numbers, a carry into bit 53 means we must increment exponent.
+    const overflowCheck = rounded >> 53n
+    if (overflowCheck > 0n) {
+      finalFrac = (rounded >> 1n) & 0x000FFFFFFFFFFFFFn
+      finalExp += 1
+      steps.push(`   Rounding caused carry — exponent incremented to ${finalExp}.`)
+    }
+  }
+
   if (finalExp >= MAX_EXP_STORED) {
     finalExp = MAX_EXP_STORED
     finalFrac = 0n
     steps.push(`   Overflow detected: result exponent >= ${MAX_EXP_STORED}. Rounding to Infinity.`)
-  } else if (finalExp <= 0) {
-    // Result is subnormal (or underflows to zero): stored exponent = 0.
-    // 'rounded' is the 53-bit normalised significand (1.fraction).
-    // To represent as 0.fraction × 2^(−1022), right-shift by max(0, −resultExp).
-    const denormShift = Math.max(0, -resultExp)
-    steps.push(`   Subnormal result: exponent ${finalExp} <= 0. Denormalising: right-shift significand by ${denormShift}.`)
-    finalFrac = (rounded >> BigInt(denormShift)) & 0x000FFFFFFFFFFFFFn
-    finalExp = 0
-
-    // Recompute GRS from the bits lost in the denorm right-shift of `rounded`.
-    // These are the true precision-loss bits for the overall multiplication.
-    if (denormShift >= 1) {
-      const newG = Number((rounded >> BigInt(denormShift - 1)) & 1n)
-      const newR = denormShift >= 2 ? Number((rounded >> BigInt(denormShift - 2)) & 1n) : 0
-      const stickyBits = denormShift >= 3 ? (rounded & ((1n << BigInt(denormShift - 2)) - 1n)) : 0n
-      const newS = stickyBits !== 0n ? 1 : 0
-      grs.guard  = newG
-      grs.round  = newR
-      grs.sticky = newS
-      grs.action = `Denorm shift ${denormShift}: G=${newG}, R=${newR}, S=${newS} (bits lost denormalising to subnormal)`
-      steps.push(`   GRS recomputed after denorm shift: G=${newG}, R=${newR}, S=${newS}`)
-    }
   }
 
   const resultBits =
@@ -454,6 +519,6 @@ export function multiplyIEEE754(a: number, b: number): ArithmeticResult {
     operand1Decimal: String(a), operand2Decimal: String(b),
     operand1Binary: formatBinary(aBin), operand2Binary: formatBinary(bBin),
     resultBinary: formatBinary(resultBin), resultHex: formatHex(resultBits),
-    resultDecimal: String(resultNum), steps, grsInfo: grs
+    resultDecimal: Object.is(resultNum, -0) ? '-0' : String(resultNum), steps, grsInfo: grs
   }
 }
