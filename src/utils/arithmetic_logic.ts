@@ -415,6 +415,14 @@ export function multiplyIEEE754(a: number, b: number): ArithmeticResult {
     finalExp = MAX_EXP_STORED
     finalFrac = 0n
     steps.push(`   Overflow detected: result exponent >= ${MAX_EXP_STORED}. Rounding to Infinity.`)
+  } else if (finalExp <= 0) {
+    // Result is subnormal (or underflows to zero): stored exponent = 0.
+    // 'rounded' is the 53-bit normalised significand (1.fraction).
+    // To represent as 0.fraction × 2^(−1022), right-shift by max(0, −resultExp).
+    const denormShift = Math.max(0, -resultExp)
+    steps.push(`   Subnormal result: exponent ${finalExp} <= 0. Denormalising: right-shift significand by ${denormShift}.`)
+    finalFrac = (rounded >> BigInt(denormShift)) & 0x000FFFFFFFFFFFFFn
+    finalExp = 0
   }
 
   const resultBits =

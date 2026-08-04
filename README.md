@@ -57,7 +57,7 @@ To achieve the maximum score based on the grading rubric, this project must:
 ### 🌟 4. Additional Features (For the 90-Point Tier)
 *(Brainstorm and check off 1-2 extra features here to secure the perfect score)*
 - [/] **Reverse Conversion:** Added functionality to convert an IEEE 754 double-precision input (Binary or Hexadecimal) back into a Decimal format.
-
+- [/] **Flag Visualizaiton:** Added functionality to display and explain the flags set according to the IEEE 754 64-bit floating-point standard (https://faculty.cc.gatech.edu/~hyesoon/spr09/ieee754.pdf)
 ---
 
 ## 📦 Deliverables Checklist
