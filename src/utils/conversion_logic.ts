@@ -326,8 +326,11 @@ export function convertIEEE754ToDecimal(input: string): IEEE754DecodingResult {
 
     steps.push(`Runtime IEEE754 decoded value: ${finalDecimal}`);
 
+    // Object.is(-0, -0) is true; String(-0) returns "0" in JS, so we handle it explicitly.
+    const decimalStr = Object.is(finalDecimal, -0) ? '-0' : finalDecimal.toString();
+
     return {
-        decimal: finalDecimal.toString(),
+        decimal: decimalStr,
         steps
     };
 }
