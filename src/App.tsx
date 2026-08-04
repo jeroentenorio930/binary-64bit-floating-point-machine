@@ -4,47 +4,46 @@ import { Conversion } from './components/Conversion'
 import { Rounding } from './components/Rounding'
 import { Arithmetic } from './components/Arithmetic'
 
-type Tab = 'conversion' | 'rounding' | 'arithmetic';
+type Tab = 'conversion' | 'rounding' | 'arithmetic'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'conversion', label: '[ Conversion ]' },
+  { id: 'rounding',   label: '[ Rounding ]' },
+  { id: 'arithmetic', label: '[ Arithmetic ]' },
+]
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('conversion')
 
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>Binary 64-bit Floating-Point Machine</h1>
-        <p className="subtitle">IEEE 754 Double-Precision Operations Simulator</p>
+      <header className="site-header">
+        <h1>Binary 64-Bit Floating-Point Machine</h1>
+        <p className="site-subtitle">IEEE 754 Double-Precision Operations Simulator · CSARCH2 Group 4</p>
       </header>
 
-      <nav className="tab-navigation">
-        <button 
-          className={activeTab === 'conversion' ? 'active' : ''} 
-          onClick={() => setActiveTab('conversion')}
-        >
-          Conversion
-        </button>
-        <button 
-          className={activeTab === 'rounding' ? 'active' : ''} 
-          onClick={() => setActiveTab('rounding')}
-        >
-          Rounding
-        </button>
-        <button 
-          className={activeTab === 'arithmetic' ? 'active' : ''} 
-          onClick={() => setActiveTab('arithmetic')}
-        >
-          Arithmetic
-        </button>
+      <nav className="tab-nav" role="navigation" aria-label="Main sections">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            id={`tab-${tab.id}`}
+            className={activeTab === tab.id ? 'btn-active' : ''}
+            onClick={() => setActiveTab(tab.id)}
+            aria-current={activeTab === tab.id ? 'page' : undefined}
+          >
+            {tab.label}
+          </button>
+        ))}
       </nav>
 
-      <main className="content">
+      <main className="main-content" key={activeTab}>
         {activeTab === 'conversion' && <Conversion />}
-        {activeTab === 'rounding' && <Rounding />}
+        {activeTab === 'rounding'   && <Rounding />}
         {activeTab === 'arithmetic' && <Arithmetic />}
       </main>
 
-      <footer className="footer">
-        <p>CSARCH2 Simulation Project - Group 4</p>
+      <footer className="site-footer">
+        CSARCH2 Machine 3 · Binary 64-Bit Floating-Point Simulator · Group 4
       </footer>
     </div>
   )
