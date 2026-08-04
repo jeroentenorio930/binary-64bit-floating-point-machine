@@ -6,6 +6,37 @@ import {
   type ArithmeticResult,
 } from '../utils/arithmetic_logic'
 import { StepsLog } from './StepsLog'
+import { ExceptionFlagsDisplay, type ExceptionFlags } from './ExceptionFlags'
+
+const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
+const MAX_DOUBLE = Number.MAX_VALUE
+
+function computeArithmeticFlags(
+  valA: number,
+  valB: number,
+  res: ArithmeticResult
+): ExceptionFlags {
+  const resNum = Number(res.resultDecimal)
+  const absRes = Math.abs(resNum)
+  const resDecLower = res.resultDecimal.toLowerCase()
+
+  const isNaNVal = Number.isNaN(resNum) || resDecLower.includes('nan') || Number.isNaN(valA) || Number.isNaN(valB)
+
+  const operandsFinite = Number.isFinite(valA) && Number.isFinite(valB)
+  const isOverflowVal = !isNaNVal && operandsFinite && (absRes > MAX_DOUBLE || !Number.isFinite(resNum) || resDecLower.includes('infinity'))
+
+  const operandsNonZero = valA !== 0 && valB !== 0 && operandsFinite
+  const isUnderflowVal = !isNaNVal && operandsNonZero && (absRes === 0 || (absRes > 0 && absRes < SMALLEST_NORMAL_DOUBLE))
+
+  const isInexactVal = res.grsInfo.guard === 1 || res.grsInfo.round === 1 || res.grsInfo.sticky === 1 || isOverflowVal || isUnderflowVal
+
+  return {
+    inv: isNaNVal,
+    of: isOverflowVal,
+    uf: isUnderflowVal,
+    inx: isInexactVal,
+  }
+}
 
 // ── GRS Badge ─────────────────────────────────────────────────────────────────
 
@@ -120,21 +151,40 @@ export function Arithmetic() {
   const [b, setB]           = useState('')
   const [result, setResult] = useState<ArithmeticResult | null>(null)
   const [error, setError]   = useState('')
+  const [flags, setFlags]   = useState<ExceptionFlags>({
+    inv: false,
+    of: false,
+    uf: false,
+    inx: false,
+  })
 
   function handleCompute() {
-    if (!a.trim() || !b.trim()) { setError('Please fill in both operands.'); return }
+    if (!a.trim() || !b.trim()) {
+      setError('Please fill in both operands.')
+      setFlags({ inv: false, of: false, uf: false, inx: false })
+      return
+    }
 
     const parsedA = parseOperand(a)
     const parsedB = parseOperand(b)
 
-    if (!parsedA) { setError('Operand A is invalid. Enter a decimal number, 16-char hex, or 64-bit binary.'); return }
-    if (!parsedB) { setError('Operand B is invalid. Enter a decimal number, 16-char hex, or 64-bit binary.'); return }
+    if (!parsedA) {
+      setError('Operand A is invalid. Enter a decimal number, 16-char hex, or 64-bit binary.')
+      setFlags({ inv: true, of: false, uf: false, inx: false })
+      return
+    }
+    if (!parsedB) {
+      setError('Operand B is invalid. Enter a decimal number, 16-char hex, or 64-bit binary.')
+      setFlags({ inv: true, of: false, uf: false, inx: false })
+      return
+    }
 
     setError('')
     const res = op === 'addition'
       ? addIEEE754(parsedA.value, parsedB.value)
       : multiplyIEEE754(parsedA.value, parsedB.value)
     setResult(res)
+    setFlags(computeArithmeticFlags(parsedA.value, parsedB.value, res))
   }
 
   function applyExample(ex: { a: string; b: string }) {
@@ -147,6 +197,7 @@ export function Arithmetic() {
       ? addIEEE754(parsedA.value, parsedB.value)
       : multiplyIEEE754(parsedA.value, parsedB.value)
     setResult(res)
+    setFlags(computeArithmeticFlags(parsedA.value, parsedB.value, res))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -228,6 +279,8 @@ export function Arithmetic() {
             Compute ▸
           </button>
         </div>
+
+        <ExceptionFlagsDisplay flags={flags} />
 
         {error && <p style={{ color: 'var(--red)', fontSize: '0.9rem' }}>⚠ {error}</p>}
 

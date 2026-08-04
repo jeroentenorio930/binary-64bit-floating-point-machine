@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { calculateRounding, type RoundingResult } from '../utils/rounding_logic'
 import { StepsLog } from './StepsLog'
+import { ExceptionFlagsDisplay, type ExceptionFlags } from './ExceptionFlags'
+
+const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
+const MAX_DOUBLE = Number.MAX_VALUE
 
 const QUICK_EXAMPLES = [
   { label: '2.35 → 1 decimal (base 10)', input: '2.35', base: 10 as const, digits: 1 },
@@ -28,6 +32,12 @@ export function Rounding() {
   const [digits, setDigits] = useState(3)
   const [result, setResult] = useState<RoundingResult | null>(null)
   const [error, setError]   = useState('')
+  const [flags, setFlags]   = useState<ExceptionFlags>({
+    inv: false,
+    of: false,
+    uf: false,
+    inx: false,
+  })
 
   function validate(val: string, b: 2 | 10): boolean {
     const trimmed = val.trim().replace(/^[+-]/, '')
@@ -38,22 +48,70 @@ export function Rounding() {
   }
 
   function handleCalculate() {
-    if (!input.trim()) { setError('Please enter a value.'); return }
-    if (!validate(input, base)) {
-      setError(`Invalid ${base === 2 ? 'binary' : 'decimal'} number. Use only digits 0-9${base === 2 ? ' and 1' : ''}.`)
+    if (!input.trim()) {
+      setError('Please enter a value.')
+      setFlags({ inv: false, of: false, uf: false, inx: false })
       return
     }
-    if (digits < 0) { setError('Target digits cannot be negative.'); return }
-    setResult(calculateRounding(input, base, digits))
+    if (!validate(input, base)) {
+      setError(`Invalid ${base === 2 ? 'binary' : 'decimal'} number. Use only digits 0-9${base === 2 ? ' and 1' : ''}.`)
+      setFlags({ inv: true, of: false, uf: false, inx: false })
+      return
+    }
+    if (digits < 0) {
+      setError('Target digits cannot be negative.')
+      setFlags({ inv: true, of: false, uf: false, inx: false })
+      return
+    }
+
+    const res = calculateRounding(input, base, digits)
+    setResult(res)
     setError('')
+
+    // Compute CPU Exception Flags during rounding
+    const cleanInput = input.trim().replace(/^[+-]/, '')
+    const parts = cleanInput.split('.')
+    const fracPart = parts[1] || ''
+    const droppedFrac = fracPart.slice(digits)
+    const hasRemainder = /[^0]/.test(droppedFrac)
+
+    const numVal = base === 10 ? Number(input) : NaN
+    const absVal = Math.abs(numVal)
+
+    const isInv = Number.isNaN(numVal) && base === 10 && input.toLowerCase() !== 'nan'
+    const isOf = !Number.isNaN(numVal) && absVal > MAX_DOUBLE
+    const isUf = !Number.isNaN(numVal) && absVal > 0 && (absVal < SMALLEST_NORMAL_DOUBLE || Number(res.roundNearestEven) === 0)
+    const isInx = hasRemainder
+
+    setFlags({
+      inv: isInv,
+      of: isOf,
+      uf: isUf,
+      inx: isInx,
+    })
   }
 
   function applyExample(ex: typeof QUICK_EXAMPLES[0]) {
     setInput(ex.input)
     setBase(ex.base)
     setDigits(ex.digits)
-    setResult(calculateRounding(ex.input, ex.base, ex.digits))
+
+    const res = calculateRounding(ex.input, ex.base, ex.digits)
+    setResult(res)
     setError('')
+
+    const cleanInput = ex.input.trim().replace(/^[+-]/, '')
+    const parts = cleanInput.split('.')
+    const fracPart = parts[1] || ''
+    const droppedFrac = fracPart.slice(ex.digits)
+    const hasRemainder = /[^0]/.test(droppedFrac)
+
+    setFlags({
+      inv: false,
+      of: false,
+      uf: false,
+      inx: hasRemainder,
+    })
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -127,6 +185,8 @@ export function Rounding() {
             Calculate ▸
           </button>
         </div>
+
+        <ExceptionFlagsDisplay flags={flags} />
 
         {error && <p style={{ color: 'var(--red)', fontSize: '0.9rem' }}>⚠ {error}</p>}
 
