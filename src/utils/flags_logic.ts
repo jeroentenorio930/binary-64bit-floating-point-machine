@@ -196,10 +196,18 @@ export function computeArithmeticFlags(
   const isInexactVal = grsInfo.guard === 1 || grsInfo.round === 1 || grsInfo.sticky === 1 || isOverflowVal
 
   const operandsNonZero = valA !== 0 && valB !== 0 && operandsFinite
-  // Underflow: tiny AND inexact
-  const isUnderflowVal = !isNaNVal && operandsNonZero && isInexactVal && (absRes === 0 || (absRes > 0 && absRes < SMALLEST_NORMAL_DOUBLE))
 
-  const finalInexact = isInexactVal || isUnderflowVal
+  // Flush-to-zero: non-zero finite operands produced 0 — all mantissa bits were lost in
+  // the denorm shift, which applyGRS never sees. This is always inexact.
+  const isFlushToZero = operandsNonZero && absRes === 0
+
+  // Overflow always implies Inexact; GRS non-zero implies Inexact; flush-to-zero implies Inexact
+  const isInexactValFull = isInexactVal || isFlushToZero
+
+  // Underflow: tiny AND inexact
+  const isUnderflowVal = !isNaNVal && operandsNonZero && isInexactValFull && (absRes === 0 || (absRes > 0 && absRes < SMALLEST_NORMAL_DOUBLE))
+
+  const finalInexact = isInexactValFull || isUnderflowVal
 
   return {
     inv: isNaNVal,
