@@ -17,6 +17,7 @@ export const MAX_DOUBLE = Number.MAX_VALUE                // ~1.7976931348623157
  */
 export function parseDecimalString(str: string): number {
   const lower = str.trim().toLowerCase()
+  if (lower === '' || lower === '+' || lower === '-') return NaN
   if (lower === 'nan') return NaN
   if (lower === 'infinity' || lower === '+infinity') return Infinity
   if (lower === '-infinity') return -Infinity
@@ -29,6 +30,7 @@ export function parseDecimalString(str: string): number {
  */
 export function isExactlyRepresentable(inputStr: string): boolean {
   const clean = inputStr.trim().toLowerCase()
+  if (clean === '' || clean === '+' || clean === '-') return true
   if (clean === 'nan') return true
   if (clean === 'infinity' || clean === '+infinity' || clean === '-infinity') return true
 
@@ -70,18 +72,13 @@ export function computeConversionFlags(
   if (isDecode) {
     // Decoding 64-bit IEEE 754 bits back to Decimal (exact bit inspection)
     const decVal = (resultDecimal || '').toLowerCase()
-    const num = parseDecimalString(resultDecimal || '')
-    const absNum = Math.abs(num)
-
-    const isNaNVal = decVal.includes('nan') || Number.isNaN(num)
-    const isOverflowVal = !isNaNVal && (absNum > MAX_DOUBLE || !Number.isFinite(num) || decVal.includes('infinity'))
-    const isUnderflowVal = !isNaNVal && absNum > 0 && absNum < SMALLEST_NORMAL_DOUBLE
+    const isNaNVal = decVal.includes('nan')
 
     return {
       inv: isNaNVal,
-      of: isOverflowVal,
-      uf: isUnderflowVal,
-      inx: false, // Bit-exact decoding never causes inexact precision loss
+      of: false,
+      uf: false,
+      inx: false, // Bit-exact decoding of stored bits never causes overflow, underflow, or inexact exceptions
     }
   }
 
@@ -112,12 +109,14 @@ export function computeConversionFlags(
  */
 export function parseToNumber(str: string, base: 2 | 10): number {
   const clean = str.trim()
+  if (clean === '' || clean === '+' || clean === '-') return NaN
   if (clean.toLowerCase() === 'nan') return NaN
   if (clean.toLowerCase() === 'infinity' || clean.toLowerCase() === '+infinity') return Infinity
   if (clean.toLowerCase() === '-infinity') return -Infinity
 
   const isNeg = clean.startsWith('-')
   const unsigned = isNeg || clean.startsWith('+') ? clean.slice(1) : clean
+  if (unsigned === '') return NaN
 
   if (base === 10) {
     return parseDecimalString(str)

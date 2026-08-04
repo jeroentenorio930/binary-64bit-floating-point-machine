@@ -39,10 +39,11 @@ export function Rounding() {
 
   function validate(val: string, b: 2 | 10): boolean {
     const trimmed = val.trim().replace(/^[+-]/, '')
+    if (trimmed === '') return false
     const parts   = trimmed.split('.')
     if (parts.length > 2) return false
     const charset = b === 2 ? /^[01]+$/ : /^\d+$/
-    return parts.every(p => p === '' || charset.test(p))
+    return parts.every(p => p === '' || charset.test(p)) && parts.some(p => p !== '')
   }
 
   function handleCalculate() {

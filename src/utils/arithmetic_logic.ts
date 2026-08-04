@@ -58,24 +58,23 @@ function formatHex(bits: bigint): string {
   return '0x' + bits.toString(16).toUpperCase().padStart(16, '0')
 }
 
-/** Parse either decimal or hex (16 chars) or binary (64 chars) into a JS number. */
 export function parseOperand(raw: string): { value: number; displayDecimal: string } | null {
   const trimmed = raw.trim()
-  if (!trimmed) return null
+  if (!trimmed || trimmed === '+' || trimmed === '-') return null
 
   // Try hex: 16 hex chars (with or without 0x prefix)
   const hexClean = trimmed.toUpperCase().replace(/^0X/, '')
   if (/^[0-9A-F]{16}$/.test(hexClean)) {
     const bits = BigInt('0x' + hexClean)
     const v = bitsToNum(bits)
-    return { value: v, displayDecimal: String(v) }
+    return { value: v, displayDecimal: Object.is(v, -0) ? '-0' : String(v) }
   }
 
   // Try 64-bit binary string
   if (/^[01]{64}$/.test(trimmed)) {
     const bits = BigInt('0b' + trimmed)
     const v = bitsToNum(bits)
-    return { value: v, displayDecimal: String(v) }
+    return { value: v, displayDecimal: Object.is(v, -0) ? '-0' : String(v) }
   }
 
   // Try decimal
@@ -85,7 +84,10 @@ export function parseOperand(raw: string): { value: number; displayDecimal: stri
   if (lower === '-infinity') return { value: -Infinity, displayDecimal: '-Infinity' }
 
   const n = Number(trimmed)
-  if (!isNaN(n) || trimmed === 'NaN') return { value: n, displayDecimal: String(n) }
+  if (!isNaN(n) || trimmed === 'NaN') {
+    const isNegZero = Object.is(n, -0) || trimmed === '-0' || trimmed === '-0.0'
+    return { value: n, displayDecimal: isNegZero ? '-0' : String(n) }
+  }
 
   return null
 }

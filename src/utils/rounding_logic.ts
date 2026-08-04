@@ -47,7 +47,17 @@ export function calculateRounding(input: string, base: 2 | 10, targetLength: num
         cleanInput = cleanInput.slice(1);
     }
 
-    // split into integer and fractional parts
+    if (!cleanInput) {
+        return {
+            original: input,
+            targetLength,
+            chopped: 'NaN',
+            roundUp: 'NaN',
+            roundDown: 'NaN',
+            roundNearestEven: 'NaN',
+            steps: ['Input is invalid (sign with no numeric value).']
+        };
+    }
     const parts = cleanInput.split('.');
     const intPart = parts[0] || "0";
     const fracPart = parts[1] || "";

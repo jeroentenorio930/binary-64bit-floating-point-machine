@@ -80,7 +80,7 @@ function classifyIEEE754Value(expVal: number, fractionStr: string, signBit: stri
 function validateDecimalInput(input: string | number): number | null {
     if (typeof input === 'string') {
         const trimmed = input.trim();
-        if (trimmed === '') return null; 
+        if (trimmed === '' || trimmed === '+' || trimmed === '-') return null; 
         if (trimmed.toLowerCase() === 'nan') return NaN;
         if (trimmed.toLowerCase() === 'infinity' || trimmed.toLowerCase() === '+infinity') return Infinity;
         if (trimmed.toLowerCase() === '-infinity') return -Infinity;
