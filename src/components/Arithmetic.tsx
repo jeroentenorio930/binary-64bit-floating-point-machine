@@ -5,42 +5,9 @@ import {
   parseOperand,
   type ArithmeticResult,
 } from '../utils/arithmetic_logic'
+import { computeArithmeticFlags } from '../utils/flags_logic'
 import { StepsLog } from './StepsLog'
 import { ExceptionFlagsDisplay, type ExceptionFlags } from './ExceptionFlags'
-
-const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
-const MAX_DOUBLE = Number.MAX_VALUE
-
-function computeArithmeticFlags(
-  valA: number,
-  valB: number,
-  res: ArithmeticResult
-): ExceptionFlags {
-  const resNum = Number(res.resultDecimal)
-  const absRes = Math.abs(resNum)
-  const resDecLower = res.resultDecimal.toLowerCase()
-
-  const isNaNVal = Number.isNaN(resNum) || resDecLower.includes('nan') || Number.isNaN(valA) || Number.isNaN(valB)
-
-  const operandsFinite = Number.isFinite(valA) && Number.isFinite(valB)
-  const isOverflowVal = !isNaNVal && operandsFinite && (absRes > MAX_DOUBLE || !Number.isFinite(resNum) || resDecLower.includes('infinity'))
-
-  const isInexactVal = res.grsInfo.guard === 1 || res.grsInfo.round === 1 || res.grsInfo.sticky === 1 || isOverflowVal
-
-  const operandsNonZero = valA !== 0 && valB !== 0 && operandsFinite
-  // Underflow: tiny AND inexact (e.g. non-zero inputs result in a subnormal/zero that is inexact)
-  const isUnderflowVal = !isNaNVal && operandsNonZero && isInexactVal && (absRes === 0 || (absRes > 0 && absRes < SMALLEST_NORMAL_DOUBLE))
-
-  // Inexact is also set if underflow occurs
-  const finalInexact = isInexactVal || isUnderflowVal
-
-  return {
-    inv: isNaNVal,
-    of: isOverflowVal,
-    uf: isUnderflowVal,
-    inx: finalInexact,
-  }
-}
 
 // ── GRS Badge ─────────────────────────────────────────────────────────────────
 
@@ -188,7 +155,7 @@ export function Arithmetic() {
       ? addIEEE754(parsedA.value, parsedB.value)
       : multiplyIEEE754(parsedA.value, parsedB.value)
     setResult(res)
-    setFlags(computeArithmeticFlags(parsedA.value, parsedB.value, res))
+    setFlags(computeArithmeticFlags(parsedA.value, parsedB.value, res.resultDecimal, res.grsInfo))
   }
 
   function applyExample(ex: { a: string; b: string }) {
@@ -201,7 +168,7 @@ export function Arithmetic() {
       ? addIEEE754(parsedA.value, parsedB.value)
       : multiplyIEEE754(parsedA.value, parsedB.value)
     setResult(res)
-    setFlags(computeArithmeticFlags(parsedA.value, parsedB.value, res))
+    setFlags(computeArithmeticFlags(parsedA.value, parsedB.value, res.resultDecimal, res.grsInfo))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

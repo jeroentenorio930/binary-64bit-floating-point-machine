@@ -5,36 +5,9 @@ import {
   type IEEE754EncodingResult,
   type IEEE754DecodingResult,
 } from '../utils/conversion_logic'
+import { computeConversionFlags } from '../utils/flags_logic'
 import { StepsLog } from './StepsLog'
 import { ExceptionFlagsDisplay, type ExceptionFlags } from './ExceptionFlags'
-const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
-const MAX_DOUBLE = Number.MAX_VALUE
-
-/**
- * Returns true if the decimal input string can be represented exactly in IEEE 754
- * double precision.
- *
- * A decimal fraction p/10^n is exactly representable in binary iff
- * 5^n divides p (since 10^n = 2^n × 5^n; the 5s must cancel).
- * This uses BigInt arithmetic so there is no floating-point rounding involved.
- */
-function isExactlyRepresentable(inputStr: string): boolean {
-  const clean = inputStr.trim().toLowerCase()
-  if (clean === 'nan' || clean.includes('infinity')) return true
-  const noSign = clean.replace(/^[+-]/, '')
-  const parts = noSign.split('.')
-  const intStr = parts[0] || '0'
-  const fracStr = parts[1] || ''
-  const n = fracStr.length
-  if (n === 0) return true  // integer — always exact (within safe range)
-  try {
-    const p = BigInt(intStr + fracStr)  // integer numerator
-    const fivePow = 5n ** BigInt(n)    // 5^n
-    return p % fivePow === 0n
-  } catch {
-    return false
-  }
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -97,34 +70,13 @@ function EncodePanel() {
     { 
       setError(res.error)
       setResult(null)
-      setFlags({ inv: true, of: false, uf: false, inx: false })
     } 
     else 
     { 
       setResult(res)
       setError('')
-
-      const lowerInput = input.toLowerCase().trim()
-      const num = Number(input)
-      const absNum = Math.abs(num)
-
-      const isNaNVal = Number.isNaN(num) || lowerInput.includes('nan')
-
-      const isOverflowVal = !isNaNVal && (absNum > MAX_DOUBLE || !Number.isFinite(num) || lowerInput.includes('infinity'))
-
-      const isUnderflowVal = !isNaNVal && absNum > 0 && absNum < SMALLEST_NORMAL_DOUBLE
-
-      // Inexact: set only when the decimal input cannot be represented exactly
-      // in 52 mantissa bits (binary fraction doesn't terminate within 52 bits).
-      const isInexactVal = !isNaNVal && !isOverflowVal && !isExactlyRepresentable(input)
-
-      setFlags({
-        inv: isNaNVal,
-        of: isOverflowVal,
-        uf: isUnderflowVal,
-        inx: isInexactVal,
-      })
     }
+    setFlags(computeConversionFlags(input, false, res.error))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -209,27 +161,13 @@ function DecodePanel() {
     { 
       setError(res.error)
       setResult(null)
-      setFlags({ inv: true, of: false, uf: false, inx: false })
     } 
     else 
     { 
-      const decVal = res.decimal.toLowerCase()
-      const num = Number(res.decimal)
-      const absNum = Math.abs(num)
-
-      const isNaNVal = decVal.includes('nan') || Number.isNaN(num)
-    
-      const isOverflowVal = !isNaNVal && (absNum > MAX_DOUBLE || !Number.isFinite(num) || decVal.includes('infinity'))
-      
-      const isUnderflowVal = !isNaNVal && absNum > 0 && absNum < SMALLEST_NORMAL_DOUBLE
-
-      setFlags({
-        inv: isNaNVal,
-        of: isOverflowVal,
-        uf: isUnderflowVal,
-        inx: false,
-      })
+      setResult(res)
+      setError('')
     }
+    setFlags(computeConversionFlags(input, true, res.error, res.decimal))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

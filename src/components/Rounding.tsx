@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { calculateRounding, type RoundingResult } from '../utils/rounding_logic'
+import { computeRoundingFlags } from '../utils/flags_logic'
 import { StepsLog } from './StepsLog'
 import { ExceptionFlagsDisplay, type ExceptionFlags } from './ExceptionFlags'
-
-const SMALLEST_NORMAL_DOUBLE = Math.pow(2, -1022)
-const MAX_DOUBLE = Number.MAX_VALUE
 
 const QUICK_EXAMPLES = [
   { label: '2.35 → 1 decimal (base 10)', input: '2.35', base: 10 as const, digits: 1 },
@@ -54,65 +52,22 @@ export function Rounding() {
       return
     }
     if (!validate(input, base)) {
-      setError(`Invalid ${base === 2 ? 'binary' : 'decimal'} number. Use only digits 0-9${base === 2 ? ' and 1' : ''}.`)
-      setFlags({ inv: true, of: false, uf: false, inx: false })
+      const err = `Invalid ${base === 2 ? 'binary' : 'decimal'} number. Use only digits 0-9${base === 2 ? ' and 1' : ''}.`
+      setError(err)
+      setFlags(computeRoundingFlags(input, base, digits, '', err))
       return
     }
     if (digits < 0) {
-      setError('Target digits cannot be negative.')
-      setFlags({ inv: true, of: false, uf: false, inx: false })
+      const err = 'Target digits cannot be negative.'
+      setError(err)
+      setFlags(computeRoundingFlags(input, base, digits, '', err))
       return
     }
 
     const res = calculateRounding(input, base, digits)
     setResult(res)
     setError('')
-
-    // Helper to parse binary or decimal float to number
-    const parseToNumber = (str: string, b: 2 | 10): number => {
-      const clean = str.trim();
-      const isNeg = clean.startsWith('-');
-      const unsigned = isNeg || clean.startsWith('+') ? clean.slice(1) : clean;
-      if (b === 10) {
-        return Number(str);
-      } else {
-        const parts = unsigned.split('.');
-        const intPart = parseInt(parts[0] || '0', 2);
-        const fracPart = parts[1] || '';
-        let fracVal = 0;
-        for (let i = 0; i < fracPart.length; i++) {
-          if (fracPart[i] === '1') {
-            fracVal += Math.pow(2, -(i + 1));
-          }
-        }
-        return (isNeg ? -1 : 1) * (intPart + fracVal);
-      }
-    };
-
-    // Compute CPU Exception Flags during rounding
-    const cleanInput = input.trim().replace(/^[+-]/, '')
-    const parts = cleanInput.split('.')
-    const fracPart = parts[1] || ''
-    const droppedFrac = fracPart.slice(digits)
-    const hasRemainder = /[^0]/.test(droppedFrac)
-
-    const numVal = parseToNumber(input, base)
-    const roundedVal = parseToNumber(res.roundNearestEven, base)
-    const absVal = Math.abs(numVal)
-    const absRounded = Math.abs(roundedVal)
-
-    const isInv = Number.isNaN(numVal) && input.toLowerCase() !== 'nan'
-    const isOf = !Number.isNaN(numVal) && absVal > MAX_DOUBLE
-    const isInx = hasRemainder
-    // Underflow: tiny AND inexact (e.g. non-zero input rounds to subnormal/zero and is inexact)
-    const isUf = !Number.isNaN(numVal) && absVal > 0 && isInx && (absRounded === 0 || absRounded < SMALLEST_NORMAL_DOUBLE)
-
-    setFlags({
-      inv: isInv,
-      of: isOf,
-      uf: isUf,
-      inx: isInx,
-    })
+    setFlags(computeRoundingFlags(input, base, digits, res.roundNearestEven))
   }
 
   function applyExample(ex: typeof QUICK_EXAMPLES[0]) {
@@ -123,19 +78,7 @@ export function Rounding() {
     const res = calculateRounding(ex.input, ex.base, ex.digits)
     setResult(res)
     setError('')
-
-    const cleanInput = ex.input.trim().replace(/^[+-]/, '')
-    const parts = cleanInput.split('.')
-    const fracPart = parts[1] || ''
-    const droppedFrac = fracPart.slice(ex.digits)
-    const hasRemainder = /[^0]/.test(droppedFrac)
-
-    setFlags({
-      inv: false,
-      of: false,
-      uf: false,
-      inx: hasRemainder,
-    })
+    setFlags(computeRoundingFlags(ex.input, ex.base, ex.digits, res.roundNearestEven))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
