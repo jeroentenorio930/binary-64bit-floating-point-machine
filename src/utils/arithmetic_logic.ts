@@ -423,6 +423,20 @@ export function multiplyIEEE754(a: number, b: number): ArithmeticResult {
     steps.push(`   Subnormal result: exponent ${finalExp} <= 0. Denormalising: right-shift significand by ${denormShift}.`)
     finalFrac = (rounded >> BigInt(denormShift)) & 0x000FFFFFFFFFFFFFn
     finalExp = 0
+
+    // Recompute GRS from the bits lost in the denorm right-shift of `rounded`.
+    // These are the true precision-loss bits for the overall multiplication.
+    if (denormShift >= 1) {
+      const newG = Number((rounded >> BigInt(denormShift - 1)) & 1n)
+      const newR = denormShift >= 2 ? Number((rounded >> BigInt(denormShift - 2)) & 1n) : 0
+      const stickyBits = denormShift >= 3 ? (rounded & ((1n << BigInt(denormShift - 2)) - 1n)) : 0n
+      const newS = stickyBits !== 0n ? 1 : 0
+      grs.guard  = newG
+      grs.round  = newR
+      grs.sticky = newS
+      grs.action = `Denorm shift ${denormShift}: G=${newG}, R=${newR}, S=${newS} (bits lost denormalising to subnormal)`
+      steps.push(`   GRS recomputed after denorm shift: G=${newG}, R=${newR}, S=${newS}`)
+    }
   }
 
   const resultBits =
